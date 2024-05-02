@@ -23,13 +23,12 @@ public class VanillaDownloader {
     public String gameDir = System.getProperty("user.dir") + "/.minecraft";
     private static String verName = "";
     private static String gameDownloadDir = System.getProperty("oml.gameDir") + "/versions/" + verName;
-    private Collection listeners;
+    private Collection<DownloadFinishEventListener> listeners;
     private boolean assetsStatus = false;
-    private boolean librariesStatus = false;
 
     public void addDownloadFinishListener(DownloadFinishEventListener listener) {
         if (listeners == null) {
-            listeners = new HashSet();
+            listeners = new HashSet<>();
         }
         listeners.add(listener);
     }
@@ -40,7 +39,9 @@ public class VanillaDownloader {
     }
 
     protected void fireWorkspaceStarted(String type) {
-        if (listeners == null) return;
+        if (listeners == null) {
+            return;
+        }
         DownloadFinishEvent event = new DownloadFinishEvent(this, type);
         notifyListeners(event);
     }
@@ -156,7 +157,10 @@ public class VanillaDownloader {
             while (true) {
                 if (count[0] == threadTimes) {
                     String path = System.getProperty("oml.gameDir") + "/libraries/";
-                    PrivateLibrariesDownload(libraries, path, 16);
+                    assetsStatus = true;
+                    new Thread(() -> {
+                        PrivateLibrariesDownload(libraries, path, 4);
+                    }).start();
                     break;
                 }
             }
@@ -208,6 +212,7 @@ public class VanillaDownloader {
                     relativePath = downloads_obj.getAsJsonObject("artifact").get("path").getAsString();
                     String absolutePath = libDirPath + "/" + relativePath;
                     url = downloads_obj.getAsJsonObject("artifact").get("url").getAsString();
+                    System.out.println("[INFO]Vanilla Downloader: Downloading library: " + libraries.get(i).getAsJsonObject().get("name").getAsString());
                     try {
                         FileUtils.writeByteArrayToFile(new File(absolutePath), IOUtils.toByteArray(new URL(url)));
                     } catch (IOException e) {
@@ -235,11 +240,10 @@ public class VanillaDownloader {
 
         new Thread(() -> {
             while (true) {
-                new Thread(() -> {
-                    if (count[0] == threadTimes && assetsStatus) {
-                        fireWorkspaceStarted("Download Finish");
-                    }
-                }).start();
+                if (count[0] == threadTimes && assetsStatus) {
+                    fireWorkspaceStarted("Download Finish");
+                    break;
+                }
             }
         }).start();
 
