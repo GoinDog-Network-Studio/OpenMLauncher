@@ -1,5 +1,7 @@
 package cn.goindog.OpenMLauncher.game.download.NeoForge;
 
+import cn.goindog.OpenMLauncher.events.GameEvents.DownloadFinishEvent;
+import cn.goindog.OpenMLauncher.events.GameEvents.DownloadFinishEventListener;
 import cn.goindog.OpenMLauncher.game.download.Vanilla.VanillaDownloader;
 import cn.goindog.OpenMLauncher.game.download.Vanilla.VanillaInstallProfile;
 import com.google.gson.Gson;
@@ -13,8 +15,35 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.HashSet;
 
 public class NeoForgeDownloader {
+    private Collection listeners;
+    public void addDownloadFinishListener(DownloadFinishEventListener listener) {
+        if (listeners == null) {
+            listeners = new HashSet();
+        }
+        listeners.add(listener);
+    }
+
+    public void removeDownloadFinishListener(DownloadFinishEventListener listener) {
+        if (listeners == null) return;
+        listeners.remove(listener);
+    }
+
+    protected void fireWorkspaceStarted(String type) {
+        if (listeners == null) return;
+        DownloadFinishEvent event = new DownloadFinishEvent(this, type);
+        notifyListeners(event);
+    }
+
+    private void notifyListeners(DownloadFinishEvent event) {
+        for (Object o : listeners) {
+            DownloadFinishEventListener listener = (DownloadFinishEventListener) o;
+            listener.DownloadFinishEvent(event);
+        }
+    }
     private File installer;
     public void build(NeoForgeDownloadProfile profile) throws IOException {
         Thread vanillaDownload = new Thread(() -> {
@@ -181,6 +210,7 @@ public class NeoForgeDownloader {
                 mergeJson.toString(),
                 StandardCharsets.UTF_8
         );
+        fireWorkspaceStarted("Download Finish");
     }
 
     private File getInstaller() {
@@ -225,5 +255,19 @@ public class NeoForgeDownloader {
         forgeVersionJson.add("clientVersion", forgeVersionJson.get("inheritsFrom"));
         forgeVersionJson.remove("inheritsFrom");
         return forgeVersionJson;
+    }
+
+    public JsonArray getNeoForgeVersion(String vanillaVersion) {
+        try {
+            return new Gson().fromJson(
+                    IOUtils.toString(
+                            new URL("https://bmclapi2.bangbang93.com/neoforge/list/" + vanillaVersion),
+                            StandardCharsets.UTF_8
+                    ),
+                    JsonArray.class
+            );
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

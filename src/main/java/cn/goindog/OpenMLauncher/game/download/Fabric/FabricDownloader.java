@@ -1,8 +1,11 @@
 package cn.goindog.OpenMLauncher.game.download.Fabric;
 
+import cn.goindog.OpenMLauncher.events.GameEvents.DownloadFinishEvent;
+import cn.goindog.OpenMLauncher.events.GameEvents.DownloadFinishEventListener;
 import cn.goindog.OpenMLauncher.game.download.Vanilla.VanillaDownloader;
 import cn.goindog.OpenMLauncher.game.download.Vanilla.VanillaInstallProfile;
 import com.google.gson.Gson;
+import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
 import com.google.gson.JsonObject;
 import org.apache.commons.io.FileUtils;
@@ -12,8 +15,35 @@ import java.io.*;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
+import java.util.HashSet;
 
 public class FabricDownloader {
+    private Collection listeners;
+    public void addDownloadFinishListener(DownloadFinishEventListener listener) {
+        if (listeners == null) {
+            listeners = new HashSet();
+        }
+        listeners.add(listener);
+    }
+
+    public void removeDownloadFinishListener(DownloadFinishEventListener listener) {
+        if (listeners == null) return;
+        listeners.remove(listener);
+    }
+
+    protected void fireWorkspaceStarted(String type) {
+        if (listeners == null) return;
+        DownloadFinishEvent event = new DownloadFinishEvent(this, type);
+        notifyListeners(event);
+    }
+
+    private void notifyListeners(DownloadFinishEvent event) {
+        for (Object o : listeners) {
+            DownloadFinishEventListener listener = (DownloadFinishEventListener) o;
+            listener.DownloadFinishEvent(event);
+        }
+    }
     private String installerUrl = "https://maven.fabricmc.net/net/fabricmc/fabric-installer/1.0.0/fabric-installer-1.0.0.jar";
 
     /**
@@ -132,6 +162,7 @@ public class FabricDownloader {
                         StandardCharsets.UTF_8
                 );
             }
+            fireWorkspaceStarted("Download Finish");
         } catch (IOException | InterruptedException e) {
             throw new RuntimeException(e);
         }
@@ -184,5 +215,42 @@ public class FabricDownloader {
             sb.append(s);
         }
         return sb.toString();
+    }
+
+    public JsonArray getFabricVersion(String vanillaVersion) {
+        try {
+            JsonArray canInstallFabricVersions = new Gson().fromJson(
+                    IOUtils.toString(
+                            new URL("https://meta.fabricmc.net/v2/versions/game"),
+                            StandardCharsets.UTF_8
+                    ),
+                    JsonArray.class
+            );
+            for (JsonElement element : canInstallFabricVersions) {
+                String version = element.getAsJsonObject().get("version").getAsString();
+                if (version.equals(vanillaVersion)) {
+                    JsonArray loaderList = new Gson().fromJson(
+                            IOUtils.toString(
+                                    new URL("https://meta.fabricmc.net/v2/versions/loader"),
+                                    StandardCharsets.UTF_8
+                            ),
+                            JsonArray.class
+                    );
+                    JsonArray fabricVersionList = new JsonArray();
+                    for (JsonElement loader : loaderList) {
+                        String loaderVersion = loader.getAsJsonObject().get("version").getAsString();
+                        fabricVersionList.add(loaderVersion);
+                    }
+                    return fabricVersionList;
+                } else {
+                    if (canInstallFabricVersions.asList().indexOf(element) == canInstallFabricVersions.size() - 1) {
+                        break;
+                    }
+                }
+            }
+            return new JsonArray();
+        } catch (IOException e) {
+            throw new RuntimeException(e);
+        }
     }
 }

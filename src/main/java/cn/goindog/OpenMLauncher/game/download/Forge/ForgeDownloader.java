@@ -1,5 +1,7 @@
 package cn.goindog.OpenMLauncher.game.download.Forge;
 
+import cn.goindog.OpenMLauncher.events.GameEvents.DownloadFinishEvent;
+import cn.goindog.OpenMLauncher.events.GameEvents.DownloadFinishEventListener;
 import cn.goindog.OpenMLauncher.exceptions.GameExceptions.ForgeExceptions.NullInstallerException;
 import cn.goindog.OpenMLauncher.game.download.Vanilla.VanillaDownloader;
 import cn.goindog.OpenMLauncher.game.download.Vanilla.VanillaInstallProfile;
@@ -13,11 +15,38 @@ import org.apache.commons.io.IOUtils;
 import java.io.*;
 import java.net.URL;
 import java.nio.charset.StandardCharsets;
+import java.util.Collection;
 import java.util.Enumeration;
+import java.util.HashSet;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
 
 public class ForgeDownloader {
+    private Collection listeners;
+    public void addDownloadFinishListener(DownloadFinishEventListener listener) {
+        if (listeners == null) {
+            listeners = new HashSet();
+        }
+        listeners.add(listener);
+    }
+
+    public void removeDownloadFinishListener(DownloadFinishEventListener listener) {
+        if (listeners == null) return;
+        listeners.remove(listener);
+    }
+
+    protected void fireWorkspaceStarted(String type) {
+        if (listeners == null) return;
+        DownloadFinishEvent event = new DownloadFinishEvent(this, type);
+        notifyListeners(event);
+    }
+
+    private void notifyListeners(DownloadFinishEvent event) {
+        for (Object o : listeners) {
+            DownloadFinishEventListener listener = (DownloadFinishEventListener) o;
+            listener.DownloadFinishEvent(event);
+        }
+    }
     /**
      * 获取所有Forge版本
      * @return 返回所有版本的JsonObject对象
@@ -56,7 +85,7 @@ public class ForgeDownloader {
         }
     }
 
-    private static void PrivateCenterDownload(ForgeInstallProfile conf) {
+    private void PrivateCenterDownload(ForgeInstallProfile conf) {
         Thread installer_download = new Thread(() -> {
             PrivateInstallerDownload(conf);
             String path = System.getProperty("oml.gameDir") + "/versions/" + conf.getGameVer() + "-forge-" + conf.getForgeVer() + "/";
@@ -87,7 +116,7 @@ public class ForgeDownloader {
         }
     }
 
-    private static void PrivateInstall(File Installer, String mcVersion) throws IOException, InterruptedException, NullInstallerException {
+    private void PrivateInstall(File Installer, String mcVersion) throws IOException, InterruptedException, NullInstallerException {
         String[] versionList = mcVersion.split("\\.");
         if (Integer.parseInt(versionList[1]) <= 13) {
             new ForgeOldInstaller(Installer).build();
@@ -109,7 +138,7 @@ public class ForgeDownloader {
         FileUtils.writeStringToFile(new File(profileDir), profilesObj.toString(), StandardCharsets.UTF_8);
     }
 
-    static class ForgeOldInstaller {
+    class ForgeOldInstaller {
         private File installer;
 
         public ForgeOldInstaller(File installer) {
@@ -324,6 +353,7 @@ public class ForgeDownloader {
                             getInstaller().getPath().replace("forge-installer.jar", version[0] + ".jar")
                     )
             );
+            fireWorkspaceStarted("Download Finish");
         }
 
         private JsonObject versionJsonMerge(JsonObject firstObj, JsonObject secondObj) {
@@ -350,7 +380,7 @@ public class ForgeDownloader {
         }
     }
 
-    static class ForgeNewInstaller {
+    class ForgeNewInstaller {
         private File installer;
 
         public ForgeNewInstaller() throws IOException {
@@ -504,6 +534,7 @@ public class ForgeDownloader {
             FileUtils.delete(installer);
             FileUtils.delete(cli);
             FileUtils.delete(vannillaJsonFile);
+            fireWorkspaceStarted("Download Finish");
         }
     }
 }
