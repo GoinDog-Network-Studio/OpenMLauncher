@@ -6,3 +6,4 @@ OpenMLauncher是一个基于Java编写的开源Minecraft启动器核心，由Goi
 如需使用，可转到[Releases](https://github.com/SkeletalAunt477/OpenMLauncher/releases)下载正式版，开发版以及更多版本可转到[下载OpenMLauncher - GoinDog开发者门户网站](https://developers.goindog.cn/openmlauncher/download)进行下载
 ## 未来计划
 - 加入终端运行支持
+- 更改"for"循环为Gson流操作
