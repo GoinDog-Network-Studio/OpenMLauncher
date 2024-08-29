@@ -6,3 +6,4 @@ OpenMLauncher is an open-source Minecraft launcher core written in Java and main
 If you want to use it, you can go to [Releases](https://github.com/SkeletalAunt477/OpenMLauncher/releases) to download the official version, and the development version and more versions can be downloaded by going to [Download OpenMLauncher - GoinDog Developers](https://developers.goindog.cn/openmlauncher/download)
 ## Features
 - Add Terminal-Running support.
+- Change "for" loop to Gson Stream.
